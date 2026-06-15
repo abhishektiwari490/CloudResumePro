@@ -294,7 +294,7 @@ if (copyright) {
 // ================================
 
 console.log(
-    "%c☁️ CloudResume Pro",
+    "%c☁️ CloudOps DeployHub",
     "font-size:24px;font-weight:bold;color:#00D9FF;"
 );
 
