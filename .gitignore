@@ -1,32 +1,17 @@
-# Node
-node_modules/
-
 # VS Code
 .vscode/
 
-# OS
-Thumbs.db
+# OS Files
 .DS_Store
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
+Thumbs.db
 
 # Logs
 *.log
 
-# Environment
+# Environment Variables
 .env
-.env.local
+.env.*
 
-# macOS
-.Spotlight-V100
-.Trashes
-
-# Build outputs
-dist/
-build/
-
-# Ignore personal resume uploads if present
-assets/resume/*.pdf
+# Temporary Files
+*.tmp
+*.bak
