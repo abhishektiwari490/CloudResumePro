@@ -36,4 +36,4 @@ jobs:
             --paths "/*"
 
       - name: Deployment Complete
-        run: echo "Deployment completed successfully!"
+        run: echo "Deployment completed successfully!"us
