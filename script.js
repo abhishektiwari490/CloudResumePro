@@ -329,6 +329,198 @@ floatingCards.forEach((card, index) => {
     );
 
 });
+
+/* ===========================================
+   HERO 3D PIPELINE SCENE (Three.js)
+   Visualizes the deploy pipeline as a live
+   3D node network inside the hero orb.
+=========================================== */
+
+(function initHero3DScene() {
+
+    const canvas = document.getElementById("hero-3d-canvas");
+
+    if (!canvas || typeof THREE === "undefined") return;
+
+    const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true
+    });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(0, 0, 7);
+
+    function resizeScene() {
+
+        const size = canvas.parentElement.clientWidth;
+
+        renderer.setSize(size, size, false);
+        camera.aspect = 1;
+        camera.updateProjectionMatrix();
+
+    }
+
+    const group = new THREE.Group();
+    scene.add(group);
+
+    // Pipeline nodes: GitHub -> Actions -> S3 -> CloudFront -> Lambda -> API Gateway -> DynamoDB
+    const nodeData = [
+        { pos: [-1.8, 1.0, 0.3] },
+        { pos: [-0.9, 1.5, -0.5] },
+        { pos: [0.1, 0.8, 0.8] },
+        { pos: [1.1, 1.3, -0.3] },
+        { pos: [1.9, 0.1, 0.5] },
+        { pos: [0.9, -0.9, -0.4] },
+        { pos: [-0.3, -1.4, 0.4] },
+        { pos: [-1.5, -0.6, -0.6] }
+    ];
+
+    const edges = [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[1,7],[7,2]];
+
+    const cyan = new THREE.Color(0x00d9ff);
+    const violet = new THREE.Color(0x7b61ff);
+    const dim = new THREE.Color(0x3a4156);
+
+    const nodeGeo = new THREE.IcosahedronGeometry(0.16, 1);
+    const nodeMeshes = [];
+
+    nodeData.forEach((n, i) => {
+
+        const isAccent = i % 3 === 0;
+        const color = isAccent ? cyan : (i % 3 === 1 ? violet : dim);
+
+        const mat = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: isAccent ? cyan : 0x000000,
+            emissiveIntensity: isAccent ? 0.6 : 0,
+            roughness: 0.4,
+            metalness: 0.5,
+            flatShading: true
+        });
+
+        const mesh = new THREE.Mesh(nodeGeo, mat);
+        mesh.position.set(...n.pos);
+        group.add(mesh);
+        nodeMeshes.push(mesh);
+
+        const haloGeo = new THREE.IcosahedronGeometry(0.24, 1);
+        const haloMat = new THREE.MeshBasicMaterial({
+            color: color,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.25
+        });
+
+        const halo = new THREE.Mesh(haloGeo, haloMat);
+        halo.position.copy(mesh.position);
+        group.add(halo);
+
+    });
+
+    const edgeMeta = [];
+
+    edges.forEach(([a, b]) => {
+
+        const pa = new THREE.Vector3(...nodeData[a].pos);
+        const pb = new THREE.Vector3(...nodeData[b].pos);
+        const curve = new THREE.LineCurve3(pa, pb);
+        const tubeGeo = new THREE.TubeGeometry(curve, 6, 0.008, 6, false);
+
+        const tubeMat = new THREE.MeshBasicMaterial({
+            color: 0x4a5066,
+            transparent: true,
+            opacity: 0.5
+        });
+
+        group.add(new THREE.Mesh(tubeGeo, tubeMat));
+        edgeMeta.push({ a: pa, b: pb });
+
+    });
+
+    const pulseGeo = new THREE.SphereGeometry(0.035, 8, 8);
+
+    const pulses = edgeMeta.map((edge, i) => {
+
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
+        const mesh = new THREE.Mesh(pulseGeo, mat);
+
+        mesh.userData = {
+            edge: edge,
+            t: Math.random(),
+            speed: 0.22 + Math.random() * 0.15
+        };
+
+        group.add(mesh);
+        return mesh;
+
+    });
+
+    scene.add(new THREE.AmbientLight(0x404858, 1.3));
+
+    const key = new THREE.PointLight(0x00d9ff, 2.2, 15);
+    key.position.set(3, 2, 4);
+    scene.add(key);
+
+    const fill = new THREE.PointLight(0x7b61ff, 1.6, 15);
+    fill.position.set(-3, -1, 3);
+    scene.add(fill);
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    document.addEventListener("mousemove", (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5);
+        mouseY = (e.clientY / window.innerHeight - 0.5);
+    });
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+
+        requestAnimationFrame(animate);
+
+        const t = clock.getElapsedTime();
+
+        group.rotation.y = t * 0.18 + mouseX * 0.5;
+        group.rotation.x = 0.1 + mouseY * 0.25;
+
+        nodeMeshes.forEach((m, i) => {
+            m.rotation.x += 0.004;
+            m.rotation.y += 0.005;
+        });
+
+        pulses.forEach((p) => {
+
+            const d = p.userData;
+            d.t += d.speed * 0.016;
+
+            if (d.t > 1) d.t = 0;
+
+            p.position.lerpVectors(d.edge.a, d.edge.b, d.t);
+            p.material.opacity = Math.sin(d.t * Math.PI);
+
+        });
+
+        renderer.render(scene, camera);
+
+    }
+
+    resizeScene();
+    animate();
+
+    window.addEventListener("resize", resizeScene);
+    window.addEventListener("load", () => {
+        requestAnimationFrame(() => canvas.classList.add("loaded"));
+    });
+
+    requestAnimationFrame(() => canvas.classList.add("loaded"));
+
+})();
+
 /* ===========================================
    PARTICLE BACKGROUND
 =========================================== */
